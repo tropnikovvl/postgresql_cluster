@@ -2,6 +2,7 @@
 TAG ?= local
 DOCKER_REGISTRY ?= autobase
 DOCKER_BUILD_PLATFORM ?= linux/amd64
+DOCKER_PLATFORMS ?= linux/amd64,linux/arm64
 DOCKER_BUILDX_BUILDER ?= autobase-builder
 
 # Sanitize the tag by replacing slashes with hyphens for Docker compatibility
@@ -41,7 +42,7 @@ docker-buildx-setup: ## Set up Docker Buildx builder
 	docker buildx use $(DOCKER_BUILDX_BUILDER)
 	docker buildx inspect --bootstrap > /dev/null
 
-.PHONY: docker-build docker-build-console-ui docker-build-console-api docker-build-console-db docker-build-console
+.PHONY: docker-build docker-build-automation docker-build-console-ui docker-build-console-api docker-build-console-db docker-build-console
 docker-build: ## Build for all Docker images
 	$(MAKE) docker-buildx-setup
 	$(MAKE) docker-build-automation
@@ -70,43 +71,38 @@ docker-build-console: ## Build console image (all services)
 	@echo "Build console docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
 	docker buildx build --no-cache --platform $(DOCKER_BUILD_PLATFORM) --tag console:$(SANITIZED_TAG) --file console/Dockerfile --load .
 
-.PHONY: docker-push docker-push-console-ui docker-push-console-api docker-push-console-db docker-push-console
+.PHONY: docker-login docker-push docker-push-console-ui docker-push-console-api docker-push-console-db docker-push-console
+docker-login: ## Login to Dockerhub
+	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
+
 docker-push: ## Push all images to Dockerhub (example: make docker-push TAG=my_tag DOCKER_REGISTRY=my_repo DOCKER_REGISTRY_USER="my_username" DOCKER_REGISTRY_PASSWORD="my_password")
+	$(MAKE) docker-buildx-setup
+	$(MAKE) docker-login
 	$(MAKE) docker-push-automation
 	$(MAKE) docker-push-console-ui
 	$(MAKE) docker-push-console-api
 	$(MAKE) docker-push-console-db
 	$(MAKE) docker-push-console
 
-docker-push-automation: ## Push automation to Dockerhub
-	@echo "Push automation docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))";
-	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
-	docker tag automation:$(SANITIZED_TAG) $(DOCKER_REGISTRY)/automation:$(SANITIZED_TAG)
-	docker push $(DOCKER_REGISTRY)/automation:$(SANITIZED_TAG)
+docker-push-automation: ## Build and Push automation to Dockerhub
+	@echo "Build and Push automation docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))";
+	docker buildx build --no-cache --platform $(DOCKER_PLATFORMS) --tag $(DOCKER_REGISTRY)/automation:$(SANITIZED_TAG) --file automation/Dockerfile --push .
 
-docker-push-console-ui: ## Push console ui image to Dockerhub
-	@echo "Push console ui docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
-	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
-	docker tag console_ui:$(SANITIZED_TAG) $(DOCKER_REGISTRY)/console_ui:$(SANITIZED_TAG)
-	docker push $(DOCKER_REGISTRY)/console_ui:$(SANITIZED_TAG)
+docker-push-console-ui: ## Build and Push console ui image to Dockerhub
+	@echo "Build and Push console ui docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
+	docker buildx build --no-cache --platform $(DOCKER_PLATFORMS) --tag $(DOCKER_REGISTRY)/console_ui:$(SANITIZED_TAG) --file console/ui/Dockerfile --push .
 
-docker-push-console-api: ## Push console api image to Dockerhub
-	@echo "Push console api docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
-	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
-	docker tag console_api:$(SANITIZED_TAG) $(DOCKER_REGISTRY)/console_api:$(SANITIZED_TAG)
-	docker push $(DOCKER_REGISTRY)/console_api:$(SANITIZED_TAG)
+docker-push-console-api: ## Build and Push console api image to Dockerhub
+	@echo "Build and Push console api docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
+	docker buildx build --no-cache --platform $(DOCKER_PLATFORMS) --tag $(DOCKER_REGISTRY)/console_api:$(SANITIZED_TAG) --file console/service/Dockerfile --push .
 
-docker-push-console-db: ## Push console db image to Dockerhub
-	@echo "Push console db docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
-	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
-	docker tag console_db:$(SANITIZED_TAG) $(DOCKER_REGISTRY)/console_db:$(SANITIZED_TAG)
-	docker push $(DOCKER_REGISTRY)/console_db:$(SANITIZED_TAG)
+docker-push-console-db: ## Build and Push console db image to Dockerhub
+	@echo "Build and Push console db docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
+	docker buildx build --no-cache --platform $(DOCKER_PLATFORMS) --tag $(DOCKER_REGISTRY)/console_db:$(SANITIZED_TAG) --file console/db/Dockerfile --push .
 
-docker-push-console: ## Push console image to Dockerhub (all services)
-	@echo "Push console docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
-	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
-	docker tag console:$(SANITIZED_TAG) $(DOCKER_REGISTRY)/console:$(SANITIZED_TAG)
-	docker push $(DOCKER_REGISTRY)/console:$(SANITIZED_TAG)
+docker-push-console: ## Build and Push console image to Dockerhub (all services)
+	@echo "Build and Push console docker image with tag $(TAG) (sanitized as $(SANITIZED_TAG))"
+	docker buildx build --no-cache --platform $(DOCKER_PLATFORMS) --tag $(DOCKER_REGISTRY)/console:$(SANITIZED_TAG) --file console/Dockerfile --push .
 
 .PHONY: docker-tests
 docker-tests: ## Run tests for docker

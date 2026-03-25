@@ -75,7 +75,7 @@ docker-build-console: ## Build console image (all services)
 docker-login: ## Login to Dockerhub
 	echo "$(DOCKER_REGISTRY_PASSWORD)" | docker login --username "$(DOCKER_REGISTRY_USER)" --password-stdin
 
-docker-push: ## Push all images to Dockerhub (example: make docker-push TAG=my_tag DOCKER_REGISTRY=my_repo DOCKER_REGISTRY_USER="my_username" DOCKER_REGISTRY_PASSWORD="my_password")
+docker-push: ## Build and Push all images to Dockerhub (example: make docker-push TAG=my_tag DOCKER_REGISTRY=my_repo DOCKER_REGISTRY_USER="my_username" DOCKER_REGISTRY_PASSWORD="my_password")
 	$(MAKE) docker-buildx-setup
 	$(MAKE) docker-login
 	$(MAKE) docker-push-automation

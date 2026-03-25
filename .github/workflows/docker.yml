@@ -38,10 +38,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        if: ${{ github.event_name != 'pull_request' }}
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -52,23 +48,20 @@ jobs:
 
       - name: Run Docker lint
         run: make docker-lint
+        if: ${{ github.event_name == 'pull_request' }}
 
-      - name: Run Docker build (amd64)
+      - name: Run Docker build
         run: make docker-build
+        if: ${{ github.event_name == 'pull_request' }}
         env:
           TAG: ${{ env.TAG }}
-          DOCKER_BUILD_PLATFORM: linux/amd64
 
-      - name: Run Docker build (arm64)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
         if: ${{ github.event_name != 'pull_request' }}
-        run: make docker-build
-        env:
-          TAG: ${{ env.TAG }}
-          DOCKER_BUILD_PLATFORM: linux/arm64
 
-      # push latest image
-      - name: Run Docker push
-        if: ${{ env.DOCKER_REGISTRY_USER != '' && env.DOCKER_REGISTRY_PASSWORD != '' && github.event_name != 'pull_request' }}
+      - name: Build and Push latest image
+        if: ${{ github.event_name != 'pull_request' && env.DOCKER_REGISTRY_USER != '' && env.DOCKER_REGISTRY_PASSWORD != '' }}
         run: make docker-push
         env:
           TAG: ${{ env.TAG }}
